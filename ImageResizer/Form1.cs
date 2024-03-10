@@ -4,27 +4,33 @@ using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Text;
 using System.Windows.Forms.Design;
+using static ImageResizer.InformationPanel;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace ImageResizer
 {
     public partial class Form1 : Form
     {
+        InformationPanel IPanel;
         //this path is the location of the logs
         private static string _logPath = "downscale_logs.txt";
         public static string? SelectedImageFullPath { get; set; }
         public static string? SelectedImageName { get; set; }
         public Bitmap CurrentResizedImage { get; set; }
 
+
         public Form1()
         {
             InitializeComponent();
+
+            IPanel = new InformationPanel(this);
+            IPanel.ShowTip();
         }
 
         #region Buttons
         private void ResizeBtn_Click(object sender, EventArgs e)
         {
-            ClearAndHideInfoPanel();
+            IPanel.Clear();
 
             double percentage;
             if (SelectedImageFullPath != null
@@ -37,10 +43,10 @@ namespace ImageResizer
 
                 //just for measuring the performance
                 Stopwatch stopwatch = Stopwatch.StartNew();
-                ResizeWay typeOfResizing = TypeCB.SelectedItem?.ToString() == nameof(ResizeWay.Sequential)
-                    ? ResizeWay.Sequential
-                    : ResizeWay.Parallel;
-                if (typeOfResizing == ResizeWay.Sequential)
+                ResizeType typeOfResizing = TypeCB.SelectedItem?.ToString() == nameof(ResizeType.Sequential)
+                    ? ResizeType.Sequential
+                    : ResizeType.Parallel;
+                if (typeOfResizing == ResizeType.Sequential)
                 {
                     stopwatch.Start();
                     CurrentResizedImage = ResizeImageSequential(originalImage, scaleValue);
@@ -56,14 +62,13 @@ namespace ImageResizer
 
                 pb.Image = CurrentResizedImage;
                 SaveBtn.Enabled = true;
-                ShowMessageInfoPanel($"Image '{SelectedImageName}' is resized succesfully to {percentage}% and the performance is logged.", MessageType.Success);
+                IPanel.ShowMessage($"Image '{SelectedImageName}' is resized succesfully to {percentage}% and the performance is logged.", MessageType.Success);
             }
             else
             {
-                ShowMessageInfoPanel("Please make sure that an image is selected and a percentage is entered between 10 and 99", MessageType.Error);
+                IPanel.ShowMessage("Please make sure that an image is selected and a percentage is entered between 10 and 99", MessageType.Error);
             }
         }
-
         private void SelectImageBtn_Click(object sender, EventArgs e)
         {
             SelectImageDialog.Filter = "Image Files (*.jpg;*.jpeg;*.png;*.gif;*.bmp)|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
@@ -84,7 +89,7 @@ namespace ImageResizer
                     SelectedImageName = Path.GetFileName(SelectedImageFullPath);
                     imgNameLbl.Text = SelectedImageName;
 
-                    ShowMessageInfoPanel($"Image {SelectedImageName} is ready for downsising, enter a percentage.", MessageType.Info);
+                    IPanel.ShowTip();
                 }
                 catch (Exception ex)
                 {
@@ -92,7 +97,6 @@ namespace ImageResizer
                 }
             }
         }
-
         private void SaveBtn_Click(object sender, EventArgs e)
         {
             using (FileStream fs = new FileStream(SelectedImageFullPath, FileMode.Create, FileAccess.Write))
@@ -104,7 +108,7 @@ namespace ImageResizer
                     {
                         CurrentResizedImage.Save(fs, ImageFormat.Jpeg);
                         SaveBtn.Enabled = false;
-                        ShowMessageInfoPanel($"Downsized image '{SelectedImageName}' is saved succesfully", MessageType.Success);
+                        IPanel.ShowMessage($"Downsized image '{SelectedImageName}' is saved succesfully", MessageType.Success);
                     }
                 }
                 catch (Exception ex)
@@ -113,10 +117,14 @@ namespace ImageResizer
                 }
             }
         }
+        private void NextTipBtn_Click(object sender, EventArgs e)
+        {
+            IPanel.ShowTip();
+        }
         #endregion
 
 
-        #region Resizing Algorithms 
+        #region Resizing Algorithms and Logging 
         private static Bitmap ResizeImageSequential(Bitmap originalImage, double scaleFactor)
         {
             int newWidth = (int)(originalImage.Width * scaleFactor);
@@ -158,7 +166,7 @@ namespace ImageResizer
 
             return resizedImage;
         }
-        public static Bitmap ResizeImageParallel(Bitmap originalImage, double scaleFactor)
+        private static Bitmap ResizeImageParallel(Bitmap originalImage, double scaleFactor)
         {
             int newWidth = (int)(originalImage.Width * scaleFactor);
             int newHeight = (int)(originalImage.Height * scaleFactor);
@@ -199,8 +207,7 @@ namespace ImageResizer
 
             return resizedImage;
         }
-        
-        public static void RecordMeasurments(string text)
+        private static void RecordMeasurments(string text)
         {
             if (File.Exists(_logPath))
             {
@@ -217,47 +224,44 @@ namespace ImageResizer
                 }
             }
         }
-
-        public enum ResizeWay
+        public enum ResizeType
         {
             Sequential,
             Parallel
         }
         #endregion
 
-
         #region Information Panel
-        private void ShowMessageInfoPanel(string message, MessageType type)
-        {
-            InfoPnl.Visible = true;
-            InfoLbl2.Text = message;
-            switch (type)
-            {
-                case MessageType.Info:
-                    InfoPnl.BackColor = Color.Orange;
-                    break;
-                case MessageType.Error:
-                    InfoPnl.BackColor = Color.Tomato;
-                    break;
-                case MessageType.Success:
-                    InfoPnl.BackColor = Color.MediumSeaGreen;
-                    break;
-                default:
-                    break;
-            }
-        }
-        private void ClearAndHideInfoPanel()
-        {
-            InfoPnl.Visible = false;
-            InfoLbl2.Text = string.Empty;
-        }
-
-        enum MessageType
-        {
-            Info,
-            Error,
-            Success
-        }
+        //private void ShowMessage(string message, MessageType type)
+        //{
+        //    InfoPnl.Visible = true;
+        //    InfoLbl2.Text = message;
+        //    switch (type)
+        //    {
+        //        case MessageType.Info:
+        //            InfoPnl.BackColor = Color.Orange;
+        //            break;
+        //        case MessageType.Error:
+        //            InfoPnl.BackColor = Color.Tomato;
+        //            break;
+        //        case MessageType.Success:
+        //            InfoPnl.BackColor = Color.MediumSeaGreen;
+        //            break;
+        //        default:
+        //            break;
+        //    }
+        //}
+        //private void Clear()
+        //{
+        //    InfoPnl.Visible = false;
+        //    InfoLbl2.Text = string.Empty;
+        //}
+        //enum MessageType
+        //{
+        //    Info,
+        //    Error,
+        //    Success
+        //}
         #endregion
 
     }

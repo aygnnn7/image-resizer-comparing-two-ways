@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             pb = new PictureBox();
             ResizeBtn = new Button();
             InfoLbl = new Label();
@@ -41,6 +42,7 @@
             percentageTB = new TextBox();
             SelectImageDialog = new OpenFileDialog();
             InfoPnl = new Panel();
+            NextTipBtn = new Button();
             InfoLbl2 = new Label();
             SaveBtn = new Button();
             ((System.ComponentModel.ISupportInitialize)pb).BeginInit();
@@ -176,13 +178,26 @@
             // 
             InfoPnl.BackColor = SystemColors.Info;
             InfoPnl.BorderStyle = BorderStyle.FixedSingle;
+            InfoPnl.Controls.Add(NextTipBtn);
             InfoPnl.Controls.Add(InfoLbl2);
             InfoPnl.Location = new Point(28, 330);
             InfoPnl.Name = "InfoPnl";
             InfoPnl.Size = new Size(730, 85);
             InfoPnl.TabIndex = 5;
             InfoPnl.Visible = false;
-            
+            // 
+            // NextTipBtn
+            // 
+            NextTipBtn.BackColor = Color.Orange;
+            NextTipBtn.Font = new Font("Segoe UI", 8F);
+            NextTipBtn.ForeColor = SystemColors.AppWorkspace;
+            NextTipBtn.Image = (Image)resources.GetObject("NextTipBtn.Image");
+            NextTipBtn.Location = new Point(680, 3);
+            NextTipBtn.Name = "NextTipBtn";
+            NextTipBtn.Size = new Size(41, 40);
+            NextTipBtn.TabIndex = 1;
+            NextTipBtn.UseVisualStyleBackColor = false;
+            NextTipBtn.Click += NextTipBtn_Click;
             // 
             // InfoLbl2
             // 
@@ -226,20 +241,21 @@
 
         #endregion
 
-        private PictureBox pb;
-        private Button ResizeBtn;
-        private Label InfoLbl;
-        private Panel panel1;
-        private Label percentageLbl;
-        private TextBox percentageTB;
-        private OpenFileDialog SelectImageDialog;
-        private Button SelectImageBtn;
-        private Label label1;
-        private Panel InfoPnl;
-        private Label InfoLbl2;
-        private Button SaveBtn;
-        private Label imgNameLbl;
-        private ComboBox TypeCB;
-        private Label TypeLbl;
+        public PictureBox pb;
+        public Button ResizeBtn;
+        public Label InfoLbl;
+        public Panel panel1;
+        public Label percentageLbl;
+        public TextBox percentageTB;
+        public OpenFileDialog SelectImageDialog;
+        public Button SelectImageBtn;
+        public Label label1;
+        public Panel InfoPnl;
+        public Label InfoLbl2;
+        public Button SaveBtn;
+        public Label imgNameLbl;
+        public ComboBox TypeCB;
+        public Label TypeLbl;
+        private Button NextTipBtn;
     }
 }
