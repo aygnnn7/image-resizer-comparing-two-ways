@@ -10,7 +10,8 @@ namespace ImageResizer
 {
     public partial class Form1 : Form
     {
-        private static string _logPath = "/logs.txt";
+        //this path is the location of the logs
+        private static string _logPath = "downscale_logs.txt";
         public static string? SelectedImageFullPath { get; set; }
         public static string? SelectedImageName { get; set; }
         public Bitmap CurrentResizedImage { get; set; }
@@ -35,15 +36,27 @@ namespace ImageResizer
                 Bitmap originalImage = new Bitmap(pb.Image);
 
                 //just for measuring the performance
-                string result = MeasurePerformance(originalImage, scaleValue, ResizeWay.Parallel);
-                RecordMeasurments(result);
-
-                CurrentResizedImage = ResizeImageParallel(originalImage, scaleValue);
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                ResizeWay typeOfResizing = TypeCB.SelectedItem?.ToString() == nameof(ResizeWay.Sequential)
+                    ? ResizeWay.Sequential
+                    : ResizeWay.Parallel;
+                if (typeOfResizing == ResizeWay.Sequential)
+                {
+                    stopwatch.Start();
+                    CurrentResizedImage = ResizeImageSequential(originalImage, scaleValue);
+                    stopwatch.Stop();
+                }
+                else
+                {
+                    stopwatch.Start();
+                    CurrentResizedImage = ResizeImageParallel(originalImage, scaleValue);
+                    stopwatch.Stop();
+                }
+                RecordMeasurments($"{typeOfResizing} downscaling of {originalImage.Width}x{originalImage.Height} image to {percentage}% took: {stopwatch.ElapsedMilliseconds} ms");
 
                 pb.Image = CurrentResizedImage;
-
                 SaveBtn.Enabled = true;
-                ShowMessageInfoPanel($"Image '{SelectedImageName}' is resized succesfully to {percentage}%", MessageType.Success);
+                ShowMessageInfoPanel($"Image '{SelectedImageName}' is resized succesfully to {percentage}% and the performance is logged.", MessageType.Success);
             }
             else
             {
@@ -101,6 +114,7 @@ namespace ImageResizer
             }
         }
         #endregion
+
 
         #region Resizing Algorithms 
         private static Bitmap ResizeImageSequential(Bitmap originalImage, double scaleFactor)
@@ -185,27 +199,7 @@ namespace ImageResizer
 
             return resizedImage;
         }
-        public static string MeasurePerformance(Bitmap originalImage, double scaleFactor, ResizeWay type)
-        {
-            Stopwatch stopwatch = new Stopwatch();
-            if (type == ResizeWay.Sequential)
-            {
-                stopwatch.Start();
-                Bitmap resizedImageSequential = ResizeImageSequential(originalImage, scaleFactor);
-                stopwatch.Stop();
-
-                return $"Sequential resizing took: {stopwatch.ElapsedMilliseconds} ms";
-            }
-            else
-            {
-                stopwatch.Start();
-                Bitmap resizedImageParallel = ResizeImageParallel(originalImage, scaleFactor);
-                stopwatch.Stop();
-
-                return $"Parallel resizing took: {stopwatch.ElapsedMilliseconds} ms";
-            }
-        }
-
+        
         public static void RecordMeasurments(string text)
         {
             if (File.Exists(_logPath))
@@ -230,8 +224,6 @@ namespace ImageResizer
             Parallel
         }
         #endregion
-
-
 
 
         #region Information Panel
@@ -259,8 +251,6 @@ namespace ImageResizer
             InfoPnl.Visible = false;
             InfoLbl2.Text = string.Empty;
         }
-
-        
 
         enum MessageType
         {
