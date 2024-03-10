@@ -1,0 +1,20 @@
+Sequential downscaling of 25000x15000 image to 50% took: 966 ms
+Parallel downscaling of 25000x15000 image to 50% took: 420 ms
+
+Sequential downscaling of 12500x7500 image to 50% took: 233 ms
+Parallel downscaling of 12500x7500 image to 50% took: 67 ms
+
+Sequential downscaling of 6250x3750 image to 50% took: 52 ms
+Parallel downscaling of 6250x3750 image to 50% took: 44 ms
+
+Sequential downscaling of 3125x1875 image to 50% took: 13 ms
+Parallel downscaling of 3125x1875 image to 50% took: 19 ms
+
+Sequential downscaling of 1562x937 image to 50% took: 4 ms
+Parallel downscaling of 1562x937 image to 50% took: 14 ms
+
+Sequential downscaling of 781x468 image to 50% took: 0 ms
+Parallel downscaling of 781x468 image to 50% took: 35 ms
+
+Sequential downscaling of 390x234 image to 50% took: 0 ms
+Parallel downscaling of 390x234 image to 50% took: 9 ms
