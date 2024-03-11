@@ -34,7 +34,7 @@ namespace ImageResizer
                     MainForm.InfoPnl.BackColor = Color.Tomato;
                     break;
                 case MessageType.Success:
-                    MainForm.BackColor = Color.MediumSeaGreen;
+                    MainForm.InfoPnl.BackColor = Color.MediumSeaGreen;
                     break;
                 default:
                     break;
@@ -53,6 +53,18 @@ namespace ImageResizer
             }
             
             ShowMessage(randomTip, MessageType.Info);
+        }
+        public void ShowResizedSuccessfully(string imgName, double percentage)
+        {
+            ShowMessage($"Image '{imgName}' is resized succesfully to {percentage}% and the performance is logged.", MessageType.Success);
+        }
+        public void ShowSavedSuccessfully(string imgName)
+        {
+            ShowMessage($"Downsized image '{imgName}' is saved succesfully", MessageType.Success);
+        }
+        public void ShowInputWarning()
+        {
+            ShowMessage("Please make sure that an image is selected and a percentage is entered between 10 and 99", MessageType.Error);
         }
         public void Clear()
         {

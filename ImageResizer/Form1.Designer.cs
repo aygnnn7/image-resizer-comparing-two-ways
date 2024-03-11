@@ -172,7 +172,11 @@
             // 
             // SelectImageDialog
             // 
-            SelectImageDialog.FileName = "SelectImageDialog";
+            SelectImageDialog.FileName = SelectedImageName != null
+                ? SelectedImageName
+                : "";
+            SelectImageDialog.Filter = "Image Files (*.jpg;*.jpeg;*.png;*.gif;*.bmp)|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
+            SelectImageDialog.Title = "Select an Image";
             // 
             // InfoPnl
             // 

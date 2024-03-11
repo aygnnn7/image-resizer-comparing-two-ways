@@ -13,7 +13,7 @@ namespace ImageResizer
     {
         InformationPanel IPanel;
         //this path is the location of the logs
-        private static string _logPath = "downscale_logs.txt";
+        private static string _logPath = "../../../../downscale_logs.txt";
         public static string? SelectedImageFullPath { get; set; }
         public static string? SelectedImageName { get; set; }
         public Bitmap CurrentResizedImage { get; set; }
@@ -46,39 +46,31 @@ namespace ImageResizer
                 ResizeType typeOfResizing = TypeCB.SelectedItem?.ToString() == nameof(ResizeType.Sequential)
                     ? ResizeType.Sequential
                     : ResizeType.Parallel;
-                if (typeOfResizing == ResizeType.Sequential)
-                {
-                    stopwatch.Start();
-                    CurrentResizedImage = ResizeImageSequential(originalImage, scaleValue);
-                    stopwatch.Stop();
-                }
-                else
-                {
-                    stopwatch.Start();
-                    CurrentResizedImage = ResizeImageParallel(originalImage, scaleValue);
-                    stopwatch.Stop();
-                }
-                RecordMeasurments($"{typeOfResizing} downscaling of {originalImage.Width}x{originalImage.Height} image to {percentage}% took: {stopwatch.ElapsedMilliseconds} ms");
+
+                stopwatch.Start();
+                CurrentResizedImage = typeOfResizing == ResizeType.Sequential
+                    ? CurrentResizedImage = ResizeImageSequential(originalImage, scaleValue)
+                    : CurrentResizedImage = ResizeImageParallel(originalImage, scaleValue);
+                stopwatch.Stop();
+
+                Thread thread = new(() => RecordMeasurments(typeOfResizing, originalImage.Width, originalImage.Height, percentage, stopwatch.ElapsedMilliseconds));
+                thread.Start();
 
                 pb.Image = CurrentResizedImage;
                 SaveBtn.Enabled = true;
-                IPanel.ShowMessage($"Image '{SelectedImageName}' is resized succesfully to {percentage}% and the performance is logged.", MessageType.Success);
+                IPanel.ShowResizedSuccessfully(SelectedImageName, percentage);
             }
             else
             {
-                IPanel.ShowMessage("Please make sure that an image is selected and a percentage is entered between 10 and 99", MessageType.Error);
+                IPanel.ShowInputWarning();
             }
         }
         private void SelectImageBtn_Click(object sender, EventArgs e)
         {
-            SelectImageDialog.Filter = "Image Files (*.jpg;*.jpeg;*.png;*.gif;*.bmp)|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
-            SelectImageDialog.Title = "Select an Image";
-
             if (SelectImageDialog.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
-
                     SelectedImageFullPath = SelectImageDialog.FileName;
                     byte[] imageBytes = File.ReadAllBytes(SelectedImageFullPath);
                     using (MemoryStream ms = new MemoryStream(imageBytes))
@@ -86,6 +78,7 @@ namespace ImageResizer
                         pb.Image = System.Drawing.Image.FromStream(ms);
                     }
 
+                    //make name suitable for UI
                     SelectedImageName = Path.GetFileName(SelectedImageFullPath);
                     int nameLenghtUI = 14;
                     if(SelectedImageName.Length > nameLenghtUI)
@@ -96,36 +89,41 @@ namespace ImageResizer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error loading image: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    throw ex;
                 }
             }
         }
         private void SaveBtn_Click(object sender, EventArgs e)
         {
-            using (FileStream fs = new FileStream(SelectedImageFullPath, FileMode.Create, FileAccess.Write))
+            DialogResult result = MessageBox.Show("The downsised image will overwrite the original. Are you sure?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            Thread threadSaver = new(() =>
             {
-                try
+                using (FileStream fs = new FileStream(SelectedImageFullPath, FileMode.Create, FileAccess.Write))
                 {
-                    DialogResult result = MessageBox.Show("The downsised image will overwrite the original. Are you sure?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                    if (result == DialogResult.Yes)
+                    try
                     {
-                        CurrentResizedImage.Save(fs, ImageFormat.Jpeg);
-                        SaveBtn.Enabled = false;
-                        IPanel.ShowMessage($"Downsized image '{SelectedImageName}' is saved succesfully", MessageType.Success);
+                        if (result == DialogResult.Yes)
+                        {
+                        
+                                CurrentResizedImage.Save(fs, ImageFormat.Jpeg);
+                                SaveBtn.Enabled = false;
+                                IPanel.ShowSavedSuccessfully(SelectedImageName);
+                       
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        throw ex;
                     }
                 }
-                catch (Exception ex)
-                {
-                    throw ex;
-                }
-            }
+            });
         }
         private void NextTipBtn_Click(object sender, EventArgs e)
         {
             IPanel.ShowTip();
         }
         #endregion
-
 
         #region Resizing Algorithms and Logging 
         private static Bitmap ResizeImageSequential(Bitmap originalImage, double scaleFactor)
@@ -210,8 +208,9 @@ namespace ImageResizer
 
             return resizedImage;
         }
-        private static void RecordMeasurments(string text)
+        private static void RecordMeasurments(ResizeType typeOfResizing, int imgW, int imgH, double percentage, long elapsedMs)
         {
+            string text = $"{typeOfResizing} downscaling of {imgW}x{imgH} image to {percentage}% took: {elapsedMs} ms";
             if (File.Exists(_logPath))
             {
                 using (StreamWriter writer = File.AppendText(_logPath))
@@ -232,39 +231,6 @@ namespace ImageResizer
             Sequential,
             Parallel
         }
-        #endregion
-
-        #region Information Panel
-        //private void ShowMessage(string message, MessageType type)
-        //{
-        //    InfoPnl.Visible = true;
-        //    InfoLbl2.Text = message;
-        //    switch (type)
-        //    {
-        //        case MessageType.Info:
-        //            InfoPnl.BackColor = Color.Orange;
-        //            break;
-        //        case MessageType.Error:
-        //            InfoPnl.BackColor = Color.Tomato;
-        //            break;
-        //        case MessageType.Success:
-        //            InfoPnl.BackColor = Color.MediumSeaGreen;
-        //            break;
-        //        default:
-        //            break;
-        //    }
-        //}
-        //private void Clear()
-        //{
-        //    InfoPnl.Visible = false;
-        //    InfoLbl2.Text = string.Empty;
-        //}
-        //enum MessageType
-        //{
-        //    Info,
-        //    Error,
-        //    Success
-        //}
         #endregion
 
     }
