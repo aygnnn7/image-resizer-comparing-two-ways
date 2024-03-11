@@ -118,6 +118,7 @@ namespace ImageResizer
                     }
                 }
             });
+            threadSaver.Start();
         }
         private void NextTipBtn_Click(object sender, EventArgs e)
         {
