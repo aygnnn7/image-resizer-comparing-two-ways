@@ -87,6 +87,9 @@ namespace ImageResizer
                     }
 
                     SelectedImageName = Path.GetFileName(SelectedImageFullPath);
+                    int nameLenghtUI = 14;
+                    if(SelectedImageName.Length > nameLenghtUI)
+                        SelectedImageName = SelectedImageName.Substring(0, nameLenghtUI-3) + "...";
                     imgNameLbl.Text = SelectedImageName;
 
                     IPanel.ShowTip();
