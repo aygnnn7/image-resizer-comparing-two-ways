@@ -46,9 +46,8 @@ namespace ImageResizer
                 CurrentResizedImage = ResizeImage(originalImage, scaleValue, typeOfResizing);
                 stopwatch.Stop();
 
-                //record
-                Thread thread = new(() => RecordMeasurments(typeOfResizing, originalImage.Width, originalImage.Height, percentage, stopwatch.ElapsedMilliseconds));
-                thread.Start();
+                // Record measurements asynchronously
+                Task.Run(() => RecordMeasurements(typeOfResizing, originalImage.Width, originalImage.Height, percentage, stopwatch.ElapsedMilliseconds));
 
                 pb.Image = CurrentResizedImage;
                 SaveBtn.Enabled = true;
@@ -120,7 +119,6 @@ namespace ImageResizer
                 });
             }
         }
-
         private void NextTipBtn_Click(object sender, EventArgs e)
         {
             IPanel.ShowTip();
@@ -200,7 +198,7 @@ namespace ImageResizer
 
             return blurfilter.Apply(image);
         }
-        private static void RecordMeasurments(ResizeType typeOfResizing, int imgW, int imgH, double percentage, long elapsedMs)
+        private static void RecordMeasurements(ResizeType typeOfResizing, int imgW, int imgH, double percentage, long elapsedMs)
         {
             string text = $"{typeOfResizing} downscaling of {imgW}x{imgH} image to {percentage}% took: {elapsedMs} ms";
             if (File.Exists(_logPath))

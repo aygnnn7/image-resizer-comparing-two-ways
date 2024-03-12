@@ -20,3 +20,4 @@ Sequential downscaling of 390x234 image to 50% took: 0 ms
 Parallel downscaling of 390x234 image to 50% took: 9 msParallel downscaling of 259x194 image to 50% took: 238 ms
 Parallel downscaling of 600x419 image to 50% took: 222 ms
 Parallel downscaling of 300x209 image to 20% took: 73 ms
+Parallel downscaling of 60x41 image to 50% took: 67 ms
