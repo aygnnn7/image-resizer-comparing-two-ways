@@ -1,23 +1,18 @@
-﻿using Microsoft.VisualBasic.ApplicationServices;
-using Microsoft.VisualBasic.Logging;
+﻿using AForge.Imaging.Filters;
 using System.Diagnostics;
 using System.Drawing.Imaging;
-using System.Text;
-using System.Windows.Forms.Design;
-using static ImageResizer.InformationPanel;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace ImageResizer
 {
     public partial class Form1 : Form
     {
         InformationPanel IPanel;
+
         //this path is the location of the logs
         private static string _logPath = "../../../../downscale_logs.txt";
         public static string? SelectedImageFullPath { get; set; }
         public static string? SelectedImageName { get; set; }
         public Bitmap CurrentResizedImage { get; set; }
-
 
         public Form1()
         {
@@ -48,11 +43,10 @@ namespace ImageResizer
                     : ResizeType.Parallel;
 
                 stopwatch.Start();
-                CurrentResizedImage = typeOfResizing == ResizeType.Sequential
-                    ? CurrentResizedImage = ResizeImageSequential(originalImage, scaleValue)
-                    : CurrentResizedImage = ResizeImageParallel(originalImage, scaleValue);
+                CurrentResizedImage = ResizeImage(originalImage, scaleValue, typeOfResizing);
                 stopwatch.Stop();
 
+                //record
                 Thread thread = new(() => RecordMeasurments(typeOfResizing, originalImage.Width, originalImage.Height, percentage, stopwatch.ElapsedMilliseconds));
                 thread.Start();
 
@@ -95,31 +89,38 @@ namespace ImageResizer
         }
         private void SaveBtn_Click(object sender, EventArgs e)
         {
-            DialogResult result = MessageBox.Show("The downsised image will overwrite the original. Are you sure?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            DialogResult result = MessageBox.Show("The downsized image will overwrite the original. Are you sure?", "Confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
-            Thread threadSaver = new(() =>
+            if (result == DialogResult.Yes)
             {
-                using (FileStream fs = new FileStream(SelectedImageFullPath, FileMode.Create, FileAccess.Write))
+                Task.Run(() =>
                 {
                     try
                     {
-                        if (result == DialogResult.Yes)
+                        using (FileStream fs = new FileStream(SelectedImageFullPath, FileMode.Create, FileAccess.Write))
                         {
-                        
-                                CurrentResizedImage.Save(fs, ImageFormat.Jpeg);
-                                SaveBtn.Enabled = false;
-                                IPanel.ShowSavedSuccessfully(SelectedImageName);
-                       
+                            CurrentResizedImage.Save(fs, ImageFormat.Jpeg);
                         }
+
+                        // This code runs on the UI thread after the save operation is complete.
+                        this.Invoke(new Action(() =>
+                        {
+                            SaveBtn.Enabled = false;
+                            IPanel.ShowSavedSuccessfully(SelectedImageName);
+                        }));
                     }
                     catch (Exception ex)
                     {
-                        throw ex;
+                        // Marshal the exception handling to the UI thread as well.
+                        this.Invoke(new Action(() =>
+                        {
+                            MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }));
                     }
-                }
-            });
-            threadSaver.Start();
+                });
+            }
         }
+
         private void NextTipBtn_Click(object sender, EventArgs e)
         {
             IPanel.ShowTip();
@@ -127,13 +128,15 @@ namespace ImageResizer
         #endregion
 
         #region Resizing Algorithms and Logging 
-        private static Bitmap ResizeImageSequential(Bitmap originalImage, double scaleFactor)
+        private static Bitmap ResizeImage(Bitmap originalImage, double scaleFactor, ResizeType type)
         {
+            //applying pre-blur for optimization
+            originalImage = ApplyGaussianBlur(originalImage);
+
             int newWidth = (int)(originalImage.Width * scaleFactor);
             int newHeight = (int)(originalImage.Height * scaleFactor);
 
             Bitmap resizedImage = new Bitmap(newWidth, newHeight);
-
             Rectangle rect = new Rectangle(0, 0, originalImage.Width, originalImage.Height);
             BitmapData originalData = originalImage.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
             BitmapData resizedData = resizedImage.LockBits(new Rectangle(0, 0, newWidth, newHeight), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
@@ -143,23 +146,13 @@ namespace ImageResizer
                 byte* originalPtr = (byte*)originalData.Scan0;
                 byte* resizedPtr = (byte*)resizedData.Scan0;
 
-                // Iterate over each pixel in the resized image
-                for (int y = 0; y < newHeight; y++)
+                if (type == ResizeType.Parallel)
                 {
-                    for (int x = 0; x < newWidth; x++)
-                    {
-                        int origX = (int)(x / scaleFactor);
-                        int origY = (int)(y / scaleFactor);
-
-                        byte* originalPixel = originalPtr + (origY * originalData.Stride) + (origX * 4);
-                        byte* resizedPixel = resizedPtr + (y * resizedData.Stride) + (x * 4);
-
-                        // Copy pixel values from original image to resized image
-                        resizedPixel[0] = originalPixel[0]; // Blue
-                        resizedPixel[1] = originalPixel[1]; // Green
-                        resizedPixel[2] = originalPixel[2]; // Red
-                        resizedPixel[3] = originalPixel[3]; // Alpha (transparency)
-                    }
+                    ParallelResize(newHeight, newWidth, scaleFactor, originalData, resizedData, originalPtr, resizedPtr);
+                }
+                else
+                {
+                    SequentialResize(newHeight, newWidth, scaleFactor, originalData, resizedData, originalPtr, resizedPtr);
                 }
             }
 
@@ -168,46 +161,44 @@ namespace ImageResizer
 
             return resizedImage;
         }
-        private static Bitmap ResizeImageParallel(Bitmap originalImage, double scaleFactor)
+        private static unsafe void SequentialResize(int newHeight, int newWidth, double scaleFactor, BitmapData originalData, BitmapData resizedData, byte* originalPtr, byte* resizedPtr)
         {
-            int newWidth = (int)(originalImage.Width * scaleFactor);
-            int newHeight = (int)(originalImage.Height * scaleFactor);
-
-            Bitmap resizedImage = new Bitmap(newWidth, newHeight);
-
-            Rectangle rect = new Rectangle(0, 0, originalImage.Width, originalImage.Height);
-            BitmapData originalData = originalImage.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-            BitmapData resizedData = resizedImage.LockBits(new Rectangle(0, 0, newWidth, newHeight), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-
-            unsafe
+            for (int y = 0; y < newHeight; y++)
             {
-                byte* originalPtr = (byte*)originalData.Scan0;
-                byte* resizedPtr = (byte*)resizedData.Scan0;
-
-                // Parallelize the resizing process using Parallel.For
-                Parallel.For(0, newHeight, y =>
+                for (int x = 0; x < newWidth; x++)
                 {
-                    for (int x = 0; x < newWidth; x++)
-                    {
-                        int origX = (int)(x / scaleFactor);
-                        int origY = (int)(y / scaleFactor);
-
-                        byte* originalPixel = originalPtr + (origY * originalData.Stride) + (origX * 4);
-                        byte* resizedPixel = resizedPtr + (y * resizedData.Stride) + (x * 4);
-
-                        // Copy pixel values from original image to resized image
-                        resizedPixel[0] = originalPixel[0]; // Blue
-                        resizedPixel[1] = originalPixel[1]; // Green
-                        resizedPixel[2] = originalPixel[2]; // Red
-                        resizedPixel[3] = originalPixel[3]; // Alpha (transparency)
-                    }
-                });
+                    ResizePixel(x, y, scaleFactor, originalData, resizedData, originalPtr, resizedPtr);
+                }
             }
+        }
+        private static unsafe void ParallelResize(int newHeight, int newWidth, double scaleFactor, BitmapData originalData, BitmapData resizedData, byte* originalPtr, byte* resizedPtr)
+        {
+            Parallel.For(0, newHeight, y =>
+            {
+                for (int x = 0; x < newWidth; x++)
+                {
+                    ResizePixel(x, y, scaleFactor, originalData, resizedData, originalPtr, resizedPtr);
+                }
+            });
+        }
+        private static unsafe void ResizePixel(int x, int y, double scaleFactor, BitmapData originalData, BitmapData resizedData, byte* originalPtr, byte* resizedPtr)
+        {
+            int origX = (int)(x / scaleFactor);
+            int origY = (int)(y / scaleFactor);
 
-            originalImage.UnlockBits(originalData);
-            resizedImage.UnlockBits(resizedData);
+            byte* originalPixel = originalPtr + (origY * originalData.Stride) + (origX * 4);
+            byte* resizedPixel = resizedPtr + (y * resizedData.Stride) + (x * 4);
 
-            return resizedImage;
+            resizedPixel[0] = originalPixel[0]; // Blue
+            resizedPixel[1] = originalPixel[1]; // Green
+            resizedPixel[2] = originalPixel[2]; // Red
+            resizedPixel[3] = originalPixel[3]; // Alpha (transparency)
+        }
+        private static Bitmap ApplyGaussianBlur(Bitmap image)
+        {
+            GaussianBlur blurfilter = new GaussianBlur(4, 11);
+
+            return blurfilter.Apply(image);
         }
         private static void RecordMeasurments(ResizeType typeOfResizing, int imgW, int imgH, double percentage, long elapsedMs)
         {
